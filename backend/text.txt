@@ -1,0 +1,1 @@
+docker run -d --name lead-board-redis -p 6379:6379 redis:7 for runnning redis 
