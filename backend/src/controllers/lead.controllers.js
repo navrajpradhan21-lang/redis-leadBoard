@@ -90,5 +90,44 @@ export const updateLeadScore = async(req,res)=>{
         const {id} = req.params;
         const {score} = req.body;
 
-    }catch(error)
-}
+        if(score<=0 || score >100){
+            return res.status(400).json({
+                success:false,
+                message:"Score must be between 0 to 100"
+            })
+        } 
+        const lead = await Lead.findByIdAndUpdate(
+            id,
+            {score},
+            {new:true}
+        );
+        
+        if(!lead){
+            return res.status(404).json({
+                success:false,
+                message:"Lead not found"
+            });
+        }
+
+        await redisClient.zAdd("leads:ranking",{
+            score:score,
+            value:id
+        });
+
+        res.status(200).json({
+            success:true,
+            lead
+        })
+        
+
+
+    }catch(error){
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to update score"
+        });
+    }
+};
+
