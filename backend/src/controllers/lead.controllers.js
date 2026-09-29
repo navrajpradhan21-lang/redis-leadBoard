@@ -47,13 +47,10 @@ export const getleaderBoard = async(req,res)=>{
                 REV:true // give in descending order
             }
         );
-
-        // the above return a array of objects {score, value}
-        
-
         const leaderBoard = [];
 
-
+        // the above return a array of objects {score, value}
+        for(const{value:leadId,score} of results){
             const lead = await Lead.findById(leadId).lean();
             //You're just reading the lead, so you don't need Mongoose's document features.
             //It can also be faster and use less memory, especially when retrieving many documents.
@@ -82,7 +79,6 @@ export const getleaderBoard = async(req,res)=>{
 
             success:false,
             message:"Failed to fetch leadBoard",
-            error:{error}
         })
 
     }
