@@ -83,4 +83,12 @@ export const getleaderBoard = async(req,res)=>{
 
     }
 }
-3
+// update 
+
+export const updateLeadScore = async(req,res)=>{
+    try{
+        const {id} = req.params;
+        const {score} = req.body;
+        
+    }
+}
