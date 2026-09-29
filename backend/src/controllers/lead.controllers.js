@@ -89,6 +89,6 @@ export const updateLeadScore = async(req,res)=>{
     try{
         const {id} = req.params;
         const {score} = req.body;
-        
-    }
+
+    }catch(error)
 }
