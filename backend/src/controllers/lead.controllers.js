@@ -6,6 +6,8 @@ import { redisClient } from "../config/redis.js";
 export const createLead = async(req,res)=>{
     try{
         const {name,email,company,score,status} = req.body;
+        // create lead in MongoDB
+
         const lead = await Lead.create({
             name,
             email,
@@ -14,13 +16,24 @@ export const createLead = async(req,res)=>{
             status
         });
 
-        // Adding the data to redis 
-        await redisClient.zAdd("leads:ranking",{
-            score:lead.score,
-            value: lead._id.toString()
-        });
+        // Adding the data to redis Sorted Set
+        await redisClient.zadd(
+            "leads:rankings",
+            lead.score,
+            lead._id.toString()
+        );
         // The above means put this into leads:ranking and Sort set with 
         // its score
+
+        // Publish event
+        await redisClient.publish(
+            "lead:created",
+            JSON.stringify({
+                leadId:lead._id.toString(),
+                name:lead.name,
+                score:lead.score
+            })
+        )
 
         res.status(201).json({
             success:true,
@@ -35,30 +48,45 @@ export const createLead = async(req,res)=>{
     }
 }
 
-// get 
+// ==========================================
+// GET LEADERBOARD
+// ==========================================
 
 export const getleaderBoard = async(req,res)=>{
     try{
-        const results = await redisClient.zRangeWithScores(
+        // Get the Top 10 lead IDs + scores form Redis 
+        const results = await redisClient.zrevrange(
             "leads:ranking",
             0,
             9,
-            {
-                REV:true // give in descending order
-            }
-        );
+            "WITHSCORES"
+        )
+
         const leaderBoard = [];
 
-        // the above return a array of objects {score, value}
-        for(const{value:leadId,score} of results){
-            const lead = await Lead.findById(leadId).lean();
-            //You're just reading the lead, so you don't need Mongoose's document features.
-            //It can also be faster and use less memory, especially when retrieving many documents.
+        // results:
+        // [
+        //     leadId,
+        //     score,
+        //     leadId,
+        //     score
+        // ]
 
-            if(!lead) continue;
+        for(let i = 0; i<results.length; i+=2){
+            const leadId = results[i];
+            const score = Number(results[i+1]) 
+
+            // Get complete lead from MongoDB 
+            const lead = await Lead
+            .findById(leadId)
+            .lean();
+
+            if(!lead){
+                continue
+            };
 
             leaderBoard.push({
-                rank:leaderBoard.length+1,
+                rank:leaderBoard.length+1, // +1 couz stating may zero hota 
                 id: leadId,
                 name:lead.name,
                 company:lead.company,
@@ -74,7 +102,8 @@ export const getleaderBoard = async(req,res)=>{
 
         
     }catch(error){
-        console.log(error)
+        console.log(error);
+
         res.status(500).json({
 
             success:false,
@@ -90,7 +119,8 @@ export const updateLeadScore = async(req,res)=>{
         const {id} = req.params;
         const {score} = req.body;
 
-        if(score<=0 || score >100){
+        // validate Score
+        if(score === undefined || score<=0 || score >100){
             return res.status(400).json({
                 success:false,
                 message:"Score must be between 0 to 100"
@@ -99,7 +129,11 @@ export const updateLeadScore = async(req,res)=>{
         const lead = await Lead.findByIdAndUpdate(
             id,
             {score},
-            {new:true}
+            {
+                new:true,
+                runValidators:true
+
+            }
         );
         
         if(!lead){
@@ -108,21 +142,30 @@ export const updateLeadScore = async(req,res)=>{
                 message:"Lead not found"
             });
         }
+        
+        // Update Redis Sorted set 
+        await redisClient.zadd(
+            "leads:ranking",
+            score,
+            id
+        );
 
-        await redisClient.zAdd("leads:ranking",{
-            score:score,
-            value:id
-        });
+        // Publish update Event
+        await redisClient.publish(
+            "lead:updated",
+            JSON.stringify({
+                leadId:id,
+                score:score
+            })
+        );
 
         res.status(200).json({
             success:true,
             lead
         })
         
-
-
     }catch(error){
-        console.error(error);
+        console.error("Update LeadScore Error",error);
 
         res.status(500).json({
             success: false,
