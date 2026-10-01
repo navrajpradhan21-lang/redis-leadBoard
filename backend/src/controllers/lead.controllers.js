@@ -1,6 +1,7 @@
 import Lead from "../models/lead.model.js";
 import { redisClient } from "../config/redis.js";
 import { getTopLeads } from "../services/leaderboard.service.js";
+import { acquireLock, releaseLock } from "../utils/redisLock.js";
 
 // create 
 export const createLead = async (req, res) => {
@@ -22,7 +23,7 @@ export const createLead = async (req, res) => {
             lead.score,
             lead._id.toString()
         );
-        
+
         // delete the cached data
         await redisClient.del("leads:leaderboard:top10")
 
@@ -83,17 +84,33 @@ export const getleaderBoard = async (req, res) => {
 
 
 export const updateLeadScore = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { score } = req.body;
 
-        // validate Score
-        if (score === undefined || score <= 0 || score > 100) {
-            return res.status(400).json({
-                success: false,
-                message: "Score must be between 0 to 100"
-            })
-        }
+    const { id } = req.params;
+    const { score } = req.body;
+
+    // validate Score
+    if (score === undefined || score <= 0 || score > 100) {
+        return res.status(400).json({
+            success: false,
+            message: "Score must be between 0 to 100"
+        })
+    }
+    const lockKey = `lock:lead:${id}`;
+
+    const token = await acquireLock(
+        lockKey,
+        5000
+
+    );
+
+    if (!token) {
+        return res.status(409).json({
+            success: false,
+            message: "Lead is currently being updated"
+        });
+    }
+    try {
+
         const lead = await Lead.findByIdAndUpdate(
             id,
             { score },
@@ -104,13 +121,14 @@ export const updateLeadScore = async (req, res) => {
             }
         );
 
-        if(!lead) {
+        if (!lead) {
             return res.status(404).json({
                 success: false,
                 message: "Lead not found"
             });
         }
 
+        
         // Update Redis Sorted set 
         await redisClient.zadd(
             "leads:rankings",
@@ -142,6 +160,11 @@ export const updateLeadScore = async (req, res) => {
             success: false,
             message: "Failed to update score"
         });
+    } finally{
+        await releaseLock(
+            lockKey,
+            token
+        );
     }
 };
 
