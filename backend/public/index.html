@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Lead Board</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #101827;
+            color: white;
+            padding: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Live Lead Board</h1>
+    <p id="status">Connecting...</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Score</th>
+            </tr>
+        </thead>
+
+        <tbody id="leaderboard"></tbody>
+    </table>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        const socket = io();
+
+        const table = document.getElementById(
+            "leaderboard"
+        );
+
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch(
+                    "/api/leads/leaderboard"
+                );
+
+                if (!response.ok) {
+                    throw new Error("Failed to load");
+                }
+
+                const data = await response.json();
+
+                table.replaceChildren();
+
+                data.leaderboard.forEach(lead => {
+                    const row = document.createElement("tr");
+
+                    [
+                        lead.rank,
+                        lead.name,
+                        lead.company,
+                        lead.score
+                    ].forEach(value => {
+                        const cell = document.createElement("td");
+                        cell.textContent = value;
+                        row.appendChild(cell);
+                    });
+
+                    table.appendChild(row);
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        socket.on("connect", () => {
+            document.getElementById("status")
+                .textContent = "Connected";
+
+            loadLeaderboard();
+        });
+
+        socket.on("disconnect", () => {
+            document.getElementById("status")
+                .textContent = "Disconnected";
+        });
+
+        socket.on("lead:created", loadLeaderboard);
+        socket.on("lead:updated", loadLeaderboard);
+
+        loadLeaderboard();
+    </script>
+
+</body>
+</html>

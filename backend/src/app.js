@@ -11,6 +11,7 @@ const app = express()
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public"))
 
 app.get('/',async(req,res)=>{
     return res.status(200).json({message:"Heath check"})

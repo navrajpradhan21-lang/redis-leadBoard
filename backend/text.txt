@@ -1,1 +1,31 @@
 docker run -d --name lead-board-redis -p 6379:6379 redis:7 for runnning redis 
+
+
+
+
+
+
+
+
+/// Imp learnings
+.lean() // essentially says:
+"Give me plain objects instead of full Mongoose documents."
+For a read-heavy endpoint like a leaderboard, that's useful.
+You don't need:save() populate() document methods change tracking these mongoose functiona;ity wont be accessable
+
+----------------------------------------------------------------------------------------------------------
+{
+    _id: { $in: leadIds }
+}
+means:
+_id must be one of the values inside leadIds. You are telling MongoDB Give me all the lead documents whose _id exists inside 
+leadIds.
+
+------------------------------------------------------------------------------------------------------------
+Why does Boolean work?
+JavaScript considers these values falsy: false 0 "" null undefined NaN
+
+-----------------------Cache----------------------------------------------------------
+Stale Cache data problem: suppose a scores changeed but our catch will be valid till 30 sec so our cache data will become invalid 
+
+Solution: invalidate the cache : Whenever we create or update a lead, we'll delete the cached leaderboard.
