@@ -5,11 +5,11 @@ const redisClient = new Redis(process.env.REDIS_URL);
 
 const redisSubscriber = new Redis(process.env.REDIS_URL);
 
-redisClient.on("error",()=>{
+redisClient.on("error",(error)=>{
     console.log('Redis Client error:',error)
 })
 
-redisSubscriber.on("error",()=>{
+redisSubscriber.on("error",(error)=>{
     console.log("Redis subscriber error",error);
 
 });
