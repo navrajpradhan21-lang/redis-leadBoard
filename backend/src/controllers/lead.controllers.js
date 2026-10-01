@@ -113,7 +113,7 @@ export const updateLeadScore = async (req, res) => {
 
         // Update Redis Sorted set 
         await redisClient.zadd(
-            "leads:ranking",
+            "leads:rankings",
             score,
             id
         );

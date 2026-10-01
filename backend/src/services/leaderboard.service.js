@@ -1,7 +1,7 @@
 import Lead from "../models/lead.model.js";
 import { redisClient } from "../config/redis.js";
 
-const RANKING_KEY = "lead:rankings";
+const RANKING_KEY = "leads:rankings";
 const CACHE_KEY = "leads:leaderboard:top10";
 
 export const getTopLeads = async()=>{
